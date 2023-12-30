@@ -1,13 +1,13 @@
+Status set to 'scanning' for domain: http://ignition.htb.
+Writing regular spider scan results to MongoDB for domain: http://ignition.htb
+Update Query: {'endpoints.6.items.0.results': {}, 'endpoints.6.items.0.scanned': datetime.datetime(2023, 12, 29, 17, 24, 45, 2175), 'endpoints.6.items.0.scan': 'none'}
 Scanning domain: http://ignition.htb with AJAX spider
 Traceback (most recent call last):
-  File "/home/syon/Desktop/threatvisor-backend-main/OrgWebscan.py", line 184, in <module>
+  File "/home/syon/Desktop/threatvisor-backend-main/OrgWebscan.py", line 227, in <module>
     scan_and_update(domain_details)
-  File "/home/syon/Desktop/threatvisor-backend-main/OrgWebscan.py", line 152, in scan_and_update
+  File "/home/syon/Desktop/threatvisor-backend-main/OrgWebscan.py", line 195, in scan_and_update
     update_ajax_spider_results(zap, alerts)
-  File "/home/syon/Desktop/threatvisor-backend-main/OrgWebscan.py", line 130, in update_ajax_spider_results
-    merge_alerts(alerts, new_alerts)
-  File "/home/syon/Desktop/threatvisor-backend-main/OrgWebscan.py", line 86, in merge_alerts
-    for vuln_type, data in new_alerts.items():
-                           ^^^^^^^^^^^^^^^^
-AttributeError: 'list' object has no attribute 'items'
-
+  File "/home/syon/Desktop/threatvisor-backend-main/OrgWebscan.py", line 171, in update_ajax_spider_results
+    for vuln_type, data in alerts.items():
+                           ^^^^^^^^^^^^
+AttributeError: 'ZAPv2' object has no attribute 'items'
