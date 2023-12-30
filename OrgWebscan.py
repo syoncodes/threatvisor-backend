@@ -125,9 +125,52 @@ def wait_for_ajax_spider_completion(zap):
         time.sleep(1)
     print("AJAX Spider scan completed")
 
-def update_ajax_spider_results(zap, alerts):
-    new_alerts = zap.ajaxSpider.results()
-    merge_alerts(alerts, new_alerts)
+def update_ajax_spider_results(alerts, new_alerts):
+    for new_alert in new_alerts:
+        vuln_type = new_alert.get('alert', '')
+        if not vuln_type:
+            continue
+
+        if vuln_type not in alerts:
+            alerts[vuln_type] = {
+                "CWE": set(),
+                "CVE": set(),
+                "WASC": set(),
+                "Description": new_alert.get('description', ''),
+                "Solution": new_alert.get('solution', ''),
+                "ThreatLevel": new_alert.get('risk', ''),
+                "Paths": []
+            }
+
+        # Add the CWE and WASC from the alert itself
+        alerts[vuln_type]["CWE"].add(new_alert.get('cweid', ''))
+        alerts[vuln_type]["WASC"].add(new_alert.get('wascid', ''))
+
+        # Add the CVE from the alert itself
+        cve_id = new_alert.get('cveid', '')
+        if cve_id:
+            alerts[vuln_type]["CVE"].add(cve_id)
+
+        # Now extract any additional CVE from the 'Other' field
+        other_info = new_alert.get('other', '')
+        additional_cve_ids = extract_cve_identifiers(other_info)
+        alerts[vuln_type]["CVE"].update(additional_cve_ids)
+
+        # Add path information
+        alerts[vuln_type]["Paths"].append({
+            "URL": new_alert.get('url', ''),
+            "Parameter": new_alert.get('param', ''),
+            "Attack": new_alert.get('attack', ''),
+            "Evidence": new_alert.get('evidence', ''),
+            "Confidence": new_alert.get('confidence', ''),
+            "Other": other_info,
+            "Discovered": datetime.now()
+        })
+
+    # Convert sets to lists
+    for vuln_type, data in alerts.items():
+        convert_sets_to_lists(data)
+
 
 def scan_and_update(domain_details):
     user_id, endpoint_index, item_index, domain, scan_type = domain_details
