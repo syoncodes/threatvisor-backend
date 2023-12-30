@@ -98,7 +98,19 @@ def wait_for_ajax_spider_completion(zap, scan_id):
     while zap.ajaxSpider.status == 'running':
         time.sleep(1)
     print("AJAX Spider scan completed")
-
+def update_mongodb(user_id, endpoint_index, item_index, alerts, scan_type):
+    try:
+        update_query = {
+            f'endpoints.{endpoint_index}.items.{item_index}.results': alerts,
+            f'endpoints.{endpoint_index}.items.{item_index}.scanned': datetime.now()
+        }
+        if scan_type == 'one-time':
+            update_query[f'endpoints.{endpoint_index}.items.{item_index}.scan'] = 'none'
+        
+        print("Update Query:", update_query)
+        collection.update_one({'_id': user_id}, {'$set': update_query}, upsert=False)
+    except DuplicateKeyError:
+        pass
 def run_spider(domain, spider_type='regular'):
     if spider_type == 'regular':
         zap.core.new_session()
