@@ -4,6 +4,7 @@ from pymongo.errors import DuplicateKeyError
 from datetime import datetime, timedelta
 import time
 import re
+import threading
 
 # Define a regular expression for CVE
 CVE_PATTERN = r'(CVE-\d{4}-\d{4,7})'
@@ -121,9 +122,37 @@ def update_mongodb(user_id, endpoint_index, item_index, alerts, scan_type):
     except DuplicateKeyError:
         pass
 
+def handle_domain_scan(user_id, endpoint_index, item_index, item, domain, scan_type):
+    if scan_needed:
+        # Update the status to "scanning"
+        collection.update_one(
+            {'_id': user_id},
+            {'$set': {f'endpoints.{endpoint_index}.status': 'scanning'}}
+        )
+        print(f"Status set to 'scanning' for domain: {domain}.")
+
+        # Run regular spider and update MongoDB
+        alerts = run_spider(domain, 'regular')
+        print(f"Writing regular spider scan results to MongoDB for domain: {domain}")
+        update_mongodb(user_id, endpoint_index, item_index, alerts, scan_type)
+
+        # Run AJAX spider, merge results and update MongoDB
+        print(f"Scanning domain: {domain} with AJAX spider")
+        new_alerts = run_spider(domain, 'ajax')
+        merge_alerts(alerts, new_alerts)
+        print(f"Appending AJAX spider scan results to MongoDB for domain: {domain}")
+        update_mongodb(user_id, endpoint_index, item_index, alerts, scan_type)
+
+        print(f"AJAX spider scan completed for domain: {domain}")
+        collection.update_one(
+            {'_id': user_id},
+            {'$set': {f'endpoints.{endpoint_index}.status': 'stopped'}}
+        )
+        print(f"Status set to 'stopped' for domain: {domain}.")
+
 # Continuously scan for new domains
 while True:
-    # Iterate over documents in the collection
+    threads = []
     for document in collection.find({"endpoints.items.service": "Domain"}):
         user_id = document['_id']
         for endpoint_index, endpoint in enumerate(document['endpoints']):
@@ -131,45 +160,24 @@ while True:
                 if item['service'] == "Domain" and 'url' in item:
                     domain = item['url']
                     if not is_valid_url(domain):
-                        continue  # Skip unsupported URLs
+                        continue
 
                     scan_type = item.get('scan', 'passive')
                     last_scan_date = item.get('scanned', datetime.min)
                     scan_needed = False
                     is_new_domain = last_scan_date == datetime.min
 
-                    # Determine if a scan is needed
                     if scan_type == 'passive' and (is_new_domain or last_scan_date < datetime.now() - timedelta(weeks=1)):
                         scan_needed = True
                     elif scan_type == 'one-time' and is_new_domain:
                         scan_needed = True
 
                     if scan_needed:
-                        # Update the status to "scanning"
-                        collection.update_one(
-                            {'_id': user_id},
-                            {'$set': {f'endpoints.{endpoint_index}.status': 'scanning'}}
-                        )
-                        print(f"Status set to 'scanning' for domain: {domain}.")
+                        t = threading.Thread(target=handle_domain_scan, args=(user_id, endpoint_index, item_index, item, domain, scan_type))
+                        t.start()
+                        threads.append(t)
 
-                        # Run regular spider and update MongoDB
-                        alerts = run_spider(domain, 'regular')
-                        print(f"Writing regular spider scan results to MongoDB for domain: {domain}")
-                        update_mongodb(user_id, endpoint_index, item_index, alerts, scan_type)
+    for t in threads:
+        t.join()
 
-                        # Run AJAX spider, merge results and update MongoDB
-                        print(f"Scanning domain: {domain} with AJAX spider")
-                        new_alerts = run_spider(domain, 'ajax')
-                        merge_alerts(alerts, new_alerts)
-                        print(f"Appending AJAX spider scan results to MongoDB for domain: {domain}")
-                        update_mongodb(user_id, endpoint_index, item_index, alerts, scan_type)
-
-                        print(f"AJAX spider scan completed for domain: {domain}")
-                        collection.update_one(
-                            {'_id': user_id},
-                            {'$set': {f'endpoints.{endpoint_index}.status': 'stopped'}}
-                        )
-                        print(f"Status set to 'stopped' for domain: {domain}.")
-
-    # Wait for a while before starting the next iteration
     time.sleep(60)
