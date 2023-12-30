@@ -1,13 +1,13 @@
-tetime(2023, 12, 29, 17, 1, 35, 609714), 'endpoints.6.items.0.scan': 'none'}
 Scanning domain: http://ignition.htb with AJAX spider
 Traceback (most recent call last):
-  File "/home/syon/Desktop/threatvisor-backend-main/OrgWebscan.py", line 180, in <module>
+  File "/home/syon/Desktop/threatvisor-backend-main/OrgWebscan.py", line 184, in <module>
     scan_and_update(domain_details)
-  File "/home/syon/Desktop/threatvisor-backend-main/OrgWebscan.py", line 143, in scan_and_update
-    ajax_scan_id = run_spider(domain, 'ajax')
-                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/syon/Desktop/threatvisor-backend-main/OrgWebscan.py", line 122, in run_spider
-    return zap.ajaxSpider.scan_id  # Return the scan ID for AJAX scans
-           ^^^^^^^^^^^^^^^^^^^^^^
-AttributeError: 'ajaxSpider' object has no attribute 'scan_id'
+  File "/home/syon/Desktop/threatvisor-backend-main/OrgWebscan.py", line 152, in scan_and_update
+    update_ajax_spider_results(zap, alerts)
+  File "/home/syon/Desktop/threatvisor-backend-main/OrgWebscan.py", line 130, in update_ajax_spider_results
+    merge_alerts(alerts, new_alerts)
+  File "/home/syon/Desktop/threatvisor-backend-main/OrgWebscan.py", line 86, in merge_alerts
+    for vuln_type, data in new_alerts.items():
+                           ^^^^^^^^^^^^^^^^
+AttributeError: 'list' object has no attribute 'items'
 
