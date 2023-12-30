@@ -94,6 +94,11 @@ def merge_alerts(alerts, new_alerts):
             alerts[vuln_type]["Paths"].extend(data["Paths"])
             convert_sets_to_lists(alerts[vuln_type])
 
+def wait_for_ajax_spider_completion(zap, scan_id):
+    while zap.ajaxSpider.status == 'running':
+        time.sleep(1)
+    print("AJAX Spider scan completed")
+
 def run_spider(domain, spider_type='regular'):
     if spider_type == 'regular':
         zap.core.new_session()
@@ -102,25 +107,10 @@ def run_spider(domain, spider_type='regular'):
             time.sleep(1)
     elif spider_type == 'ajax':
         zap.ajaxSpider.scan(domain)
-        while zap.ajaxSpider.status == 'running':
-            time.sleep(1)
-    
+        return zap.ajaxSpider.scan_id  # Return the scan ID for AJAX scans
+
     raw_alerts = zap.core.alerts()
     return process_alerts(raw_alerts)
-
-def update_mongodb(user_id, endpoint_index, item_index, alerts, scan_type):
-    try:
-        update_query = {
-            f'endpoints.{endpoint_index}.items.{item_index}.results': alerts,
-            f'endpoints.{endpoint_index}.items.{item_index}.scanned': datetime.now()
-        }
-        if scan_type == 'one-time':
-            update_query[f'endpoints.{endpoint_index}.items.{item_index}.scan'] = 'none'
-        
-        print("Update Query:", update_query)
-        collection.update_one({'_id': user_id}, {'$set': update_query}, upsert=False)
-    except DuplicateKeyError:
-        pass
 
 def scan_and_update(domain_details):
     user_id, endpoint_index, item_index, domain, scan_type = domain_details
@@ -136,29 +126,32 @@ def scan_and_update(domain_details):
     print(f"Writing regular spider scan results to MongoDB for domain: {domain}")
     update_mongodb(user_id, endpoint_index, item_index, alerts, scan_type)
 
-    # Run AJAX spider, merge results and update MongoDB
+    # Run AJAX spider and return the scan ID
     print(f"Scanning domain: {domain} with AJAX spider")
-    new_alerts = run_spider(domain, 'ajax')
-    merge_alerts(alerts, new_alerts)
-    print(f"Appending AJAX spider scan results to MongoDB for domain: {domain}")
-    update_mongodb(user_id, endpoint_index, item_index, alerts, scan_type)
+    ajax_scan_id = run_spider(domain, 'ajax')
+
+    # Wait for AJAX spider to complete and then update MongoDB
+    if ajax_scan_id:
+        wait_for_ajax_spider_completion(zap, ajax_scan_id)
+        print(f"Appending AJAX spider scan results to MongoDB for domain: {domain}")
+        new_alerts = zap.ajaxSpider.results(ajax_scan_id)
+        merge_alerts(alerts, new_alerts)
+        update_mongodb(user_id, endpoint_index, item_index, alerts, scan_type)
 
     print(f"AJAX spider scan completed for domain: {domain}")
     collection.update_one({'_id': user_id}, {'$set': {f'endpoints.{endpoint_index}.status': 'stopped'}})
     print(f"Status set to 'stopped' for domain: {domain}.")
 
-# Continuously scan for new domains
+# The previous "while True" loop for continuously scanning new domains is removed
+
+# Continuously monitor existing AJAX spider scans
 while True:
-    domain_tasks = []
     for document in collection.find({"endpoints.items.service": "Domain"}):
         user_id = document['_id']
         for endpoint_index, endpoint in enumerate(document['endpoints']):
             for item_index, item in enumerate(endpoint['items']):
                 if item['service'] == "Domain" and 'url' in item:
                     domain = item['url']
-                    if not is_valid_url(domain):
-                        continue  # Skip unsupported URLs
-
                     scan_type = item.get('scan', 'passive')
                     last_scan_date = item.get('scanned', datetime.min)
                     scan_needed = False
@@ -172,10 +165,6 @@ while True:
 
                     if scan_needed:
                         domain_details = (user_id, endpoint_index, item_index, domain, scan_type)
-                        domain_tasks.append(domain_details)
-
-    # Use ThreadPoolExecutor for parallel domain scanning
-    with ThreadPoolExecutor(max_workers=10) as executor:
-        executor.map(scan_and_update, domain_tasks)
+                        scan_and_update(domain_details)
 
     time.sleep(60)
