@@ -94,10 +94,6 @@ def merge_alerts(alerts, new_alerts):
             alerts[vuln_type]["Paths"].extend(data["Paths"])
             convert_sets_to_lists(alerts[vuln_type])
 
-def wait_for_ajax_spider_completion(zap, scan_id):
-    while zap.ajaxSpider.status == 'running':
-        time.sleep(1)
-    print("AJAX Spider scan completed")
 def update_mongodb(user_id, endpoint_index, item_index, alerts, scan_type):
     try:
         update_query = {
@@ -119,10 +115,15 @@ def run_spider(domain, spider_type='regular'):
             time.sleep(1)
     elif spider_type == 'ajax':
         zap.ajaxSpider.scan(domain)
-        return zap.ajaxSpider.scan_id  # Return the scan ID for AJAX scans
+        return None  # No need to return scan_id for AJAX scans
 
     raw_alerts = zap.core.alerts()
     return process_alerts(raw_alerts)
+
+def wait_for_ajax_spider_completion(zap):
+    while zap.ajaxSpider.status == 'running':
+        time.sleep(1)
+    print("AJAX Spider scan completed")
 
 def scan_and_update(domain_details):
     user_id, endpoint_index, item_index, domain, scan_type = domain_details
@@ -138,22 +139,20 @@ def scan_and_update(domain_details):
     print(f"Writing regular spider scan results to MongoDB for domain: {domain}")
     update_mongodb(user_id, endpoint_index, item_index, alerts, scan_type)
 
-    # Run AJAX spider and return the scan ID
+    # Run AJAX spider and wait for completion
     print(f"Scanning domain: {domain} with AJAX spider")
-    ajax_scan_id = run_spider(domain, 'ajax')
+    run_spider(domain, 'ajax')  # No need to store the return value
 
     # Wait for AJAX spider to complete and then update MongoDB
-    if ajax_scan_id:
-        wait_for_ajax_spider_completion(zap, ajax_scan_id)
-        print(f"Appending AJAX spider scan results to MongoDB for domain: {domain}")
-        new_alerts = zap.ajaxSpider.results(ajax_scan_id)
-        merge_alerts(alerts, new_alerts)
-        update_mongodb(user_id, endpoint_index, item_index, alerts, scan_type)
+    wait_for_ajax_spider_completion(zap)
+    print(f"Appending AJAX spider scan results to MongoDB for domain: {domain}")
+    new_alerts = zap.ajaxSpider.results()
+    merge_alerts(alerts, new_alerts)
+    update_mongodb(user_id, endpoint_index, item_index, alerts, scan_type)
 
     print(f"AJAX spider scan completed for domain: {domain}")
     collection.update_one({'_id': user_id}, {'$set': {f'endpoints.{endpoint_index}.status': 'stopped'}})
     print(f"Status set to 'stopped' for domain: {domain}.")
-
 # The previous "while True" loop for continuously scanning new domains is removed
 
 # Continuously monitor existing AJAX spider scans
