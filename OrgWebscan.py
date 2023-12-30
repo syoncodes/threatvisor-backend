@@ -125,6 +125,10 @@ def wait_for_ajax_spider_completion(zap):
         time.sleep(1)
     print("AJAX Spider scan completed")
 
+def update_ajax_spider_results(zap, alerts):
+    new_alerts = zap.ajaxSpider.results()
+    merge_alerts(alerts, new_alerts)
+
 def scan_and_update(domain_details):
     user_id, endpoint_index, item_index, domain, scan_type = domain_details
     if not is_valid_url(domain):
