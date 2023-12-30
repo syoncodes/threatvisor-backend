@@ -11,7 +11,7 @@ CVE_PATTERN = r'(CVE-\d{4}-\d{4,7})'
 ZAP_API_ADDRESS = 'http://localhost:8080'
 
 # ZAP setup
-zap = ZAPv2(apikey='9e6aepmr4v44i6cu8fli1c219i', proxies={'http': ZAP_API_ADDRESS, 'https': ZAP_API_ADDRESS})
+zap = ZAPv2(apikey='v12gqps25mbdudp3ve03v3imo7', proxies={'http': ZAP_API_ADDRESS, 'https': ZAP_API_ADDRESS})
 
 # MongoDB setup
 client = MongoClient('mongodb://syonb:syonsmart@ac-0w6souu-shard-00-00.jfanqj5.mongodb.net:27017,ac-0w6souu-shard-00-01.jfanqj5.mongodb.net:27017,ac-0w6souu-shard-00-02.jfanqj5.mongodb.net:27017/?replicaSet=atlas-yytbi1-shard-0&ssl=true&authSource=admin')
