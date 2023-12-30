@@ -1,0 +1,13 @@
+tetime(2023, 12, 29, 17, 1, 35, 609714), 'endpoints.6.items.0.scan': 'none'}
+Scanning domain: http://ignition.htb with AJAX spider
+Traceback (most recent call last):
+  File "/home/syon/Desktop/threatvisor-backend-main/OrgWebscan.py", line 180, in <module>
+    scan_and_update(domain_details)
+  File "/home/syon/Desktop/threatvisor-backend-main/OrgWebscan.py", line 143, in scan_and_update
+    ajax_scan_id = run_spider(domain, 'ajax')
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/syon/Desktop/threatvisor-backend-main/OrgWebscan.py", line 122, in run_spider
+    return zap.ajaxSpider.scan_id  # Return the scan ID for AJAX scans
+           ^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'ajaxSpider' object has no attribute 'scan_id'
+
